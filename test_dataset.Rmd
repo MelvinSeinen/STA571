@@ -1,0 +1,65 @@
+---
+title: "Test_dataset"
+author: "Melvin Seinen"
+date: "2023-11-09"
+output: word_document
+---
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(readxl)
+library(openxlsx)
+
+
+
+#FBI background dataset
+url <- "https://raw.githubusercontent.com/BuzzFeedNews/nics-firearm-background-checks/master/data/nics-firearm-background-checks.csv"
+
+data <- read_csv(url,show_col_types = FALSE)%>%
+  filter(!state %in% c("District of Columbia", "Guam", "Mariana Islands", "Puerto Rico", "Virgin Islands"))
+
+
+#election dataset
+election_data <- tibble::tibble(Year = seq(1998, as.numeric(format(Sys.Date(), "%Y"))),
+                                Election_Type = ifelse(seq(1998, as.numeric(format(Sys.Date(), "%Y"))) %in% seq(1998, as.numeric(format(Sys.Date(), "%Y")), by = 4), "Presidential", "NO presidential election"))
+
+#State capital with latitudes: https://www.xfront.com/us_states/
+# Latitude data
+url_2 <- "https://github.com/MelvinSeinen/STA571/raw/main/State_Capitals_latitude.xlsx"
+
+Latitude<-read.xlsx(url_2)
+
+#population data by state
+url_3 <- "https://github.com/MelvinSeinen/STA571/raw/main/us-state-populations.csv"
+
+# Read the CSV file directly into R
+Population<- read.csv(url_3)
+
+
+#combine all datasets
+data <- separate(data, month, into = c("Year", "Month_num"), sep = "-", remove=FALSE)%>%
+  mutate_at(vars(Year, Month_num), as.numeric)%>%
+  mutate(Season = case_when(
+    Month_num %in% c(3, 4, 5) ~ "Spring",
+    Month_num %in% c(6, 7, 8) ~ "Summer",
+    Month_num %in% c(9, 10, 11) ~ "Autumn",
+    TRUE ~ "Winter"  # Months 12, 1, 2
+  ))%>%
+  left_join(.,election_data, by = "Year")%>%
+  left_join(.,Latitude,by = c("state"="State"))%>%
+  left_join(.,Population,by ="state")%>%
+  mutate(Latitude=as.numeric(Latitude))%>%
+  mutate(Latitude=round(Latitude,2))
+
+
+data<-data%>%
+  select(state,Capital,Latitude,month,Year,Month_num,Season,Election_Type,totals,pop_2014)%>%
+#average background check per person for a given state and timeframe
+  mutate(avg_bc_per_person = totals / pop_2014)
+         
+
+```
+
